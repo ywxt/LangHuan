@@ -1,0 +1,17 @@
+[package]
+edition = "2021"
+name = "fany"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = {version = "1.0", features = ["derive"]}
+thiserror = "2.0"
+tracing.workspace = true
+
+mlua = {version = "0.10", features = ["async", "luau", "error-send"]}
+nom = "7.1"
+
+uuid = {version = "1.11", features = ["v4"]}
+

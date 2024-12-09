@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "fany",
+]
+
+[workspace.dependencies]
+tracing = "0.1"
