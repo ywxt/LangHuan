@@ -3,7 +3,7 @@ use nom::{
     character::complete::{alphanumeric1, line_ending, space0},
     combinator::map,
     error::{convert_error, VerboseError},
-    sequence::{pair, terminated, tuple},
+    sequence::{terminated, tuple},
     Finish, IResult,
 };
 

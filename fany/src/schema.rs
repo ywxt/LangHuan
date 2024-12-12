@@ -1,17 +1,20 @@
 use crate::Result;
-use mlua::{FromLua, Table};
+use mlua::{FromLua, IntoLua, Table};
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, str::FromStr};
 
 mod book_info;
 mod chapter;
 mod info_parser;
 mod search;
+mod session;
 mod toc;
 
 pub use book_info::*;
 pub use chapter::*;
 pub use info_parser::*;
 pub use search::*;
+pub use session::*;
 pub use toc::*;
 
 #[derive(Debug)]
@@ -44,6 +47,17 @@ impl FromLua for HttpRequest {
                 body,
             })
         }
+    }
+}
+
+impl IntoLua for HttpRequest {
+    fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
+        let table = lua.create_table()?;
+        table.set("url", self.url)?;
+        table.set("method", self.method)?;
+        table.set("headers", self.headers)?;
+        table.set("body", self.body)?;
+        table.into_lua(lua)
     }
 }
 
