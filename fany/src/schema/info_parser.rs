@@ -1,6 +1,6 @@
 use nom::{
     bytes::complete::{tag, take_while1},
-    character::complete::{alphanumeric1, line_ending, space0},
+    character::complete::{line_ending, not_line_ending, space0},
     combinator::map,
     error::{convert_error, VerboseError},
     sequence::{terminated, tuple},
@@ -9,23 +9,26 @@ use nom::{
 
 use crate::Result;
 
+fn match_allowed_name(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
+    take_while1(|c: char| c.is_alphanumeric() || c == '_' || c == '.')(input)
+}
+
 fn parse_field_name(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
     map(
         tuple((
             tag("--"),
             space0,
             tag("@"),
-            terminated(alphanumeric1, tag(":")),
+            terminated(match_allowed_name, tag(":")),
         )),
         |(_, _, _, name)| name,
     )(input)
 }
 
 fn parse_field_value(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-    map(
-        terminated(take_while1(|c: char| c != '\n' && c != '\r'), line_ending),
-        |value: &str| value.trim(),
-    )(input)
+    map(terminated(not_line_ending, line_ending), |value: &str| {
+        value.trim()
+    })(input)
 }
 
 fn parse_field(input: &str) -> IResult<&str, (&str, &str), VerboseError<&str>> {
@@ -142,5 +145,31 @@ mod tests {
         let input = "--@name: value";
         let output = parse_line(input);
         assert!(output.is_err());
+    }
+
+    #[test]
+    fn test_parse_script() {
+        let input = r#"--@name: value
+--@name_2: value2
+--@name.3: 1.0
+"#;
+        let output = parse_script(input).unwrap();
+        assert_eq!(
+            output,
+            vec![
+                Field {
+                    name: "name".to_string(),
+                    value: "value".to_string()
+                },
+                Field {
+                    name: "name_2".to_string(),
+                    value: "value2".to_string()
+                },
+                Field {
+                    name: "name.3".to_string(),
+                    value: "1.0".to_string()
+                }
+            ]
+        );
     }
 }

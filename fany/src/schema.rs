@@ -1,6 +1,5 @@
 use crate::Result;
 use mlua::{FromLua, IntoLua, Table};
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, str::FromStr};
 
 mod book_info;
@@ -68,6 +67,7 @@ pub struct Schema {
     pub book_info: BookInfoCommand,
     pub book_chapter: ChapterCommand,
     pub book_toc: TocCommand,
+    pub session: Option<SessionCommand>,
 }
 
 impl Schema {
@@ -77,12 +77,14 @@ impl Schema {
         let book_info = table.get("book_info")?;
         let book_chapter = table.get("chapter")?;
         let book_toc = table.get("toc")?;
+        let session = table.get("session")?;
         Ok(Schema {
             schema_info,
             book_search,
             book_info,
             book_chapter,
             book_toc,
+            session,
         })
     }
 }
@@ -145,4 +147,70 @@ pub trait Command: FromLua {
     type PageContent;
     fn page(&self, id: &str, params: Self::PagePathParams) -> Result<Self::PagePath>;
     fn parse(&self, content: Self::Page) -> Result<Self::PageContent>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_schema_info() {
+        let script = r#"--@id: test
+--@name: test_schema
+--@author: test_author
+--@description: test
+--@fany_version: 1.0
+--@legal_domains: test.com
+--@legal_domains: test2.com
+
+"#;
+        let schema_info = SchemaInfo::from_str(script).unwrap();
+        assert_eq!(schema_info.id, "test");
+        assert_eq!(schema_info.name, "test_schema");
+        assert_eq!(schema_info.author, "test_author");
+        assert_eq!(schema_info.description, "test");
+        assert_eq!(schema_info.fany_version, "1.0");
+        assert_eq!(schema_info.legal_domains, vec!["test.com", "test2.com"]);
+    }
+
+    #[test]
+    fn test_schema() {
+        let script = r#"--@id: test
+--@name: test_schema
+--@author: test_author
+--@description: test
+--@fany_version: 1.0
+--@legal_domains: test.com
+--@legal_domains: test2.com
+
+local function search()
+end
+local function book_info()
+end
+local function chapter()
+end
+local function toc()
+end
+local function session()
+end
+return {
+    search = {page = search, parse = search},
+    book_info = {page = book_info, parse = book_info},
+    chapter = {page = chapter, parse = chapter},
+    toc = {page = toc, parse = toc},
+    session = {page = session, parse = session, wrap = session},
+}
+"#;
+        let lua = mlua::Lua::new();
+        let table = lua.load(script).eval::<Table>().unwrap();
+        let schema = Schema::load(script, table).unwrap();
+        assert_eq!(schema.schema_info.id, "test");
+        assert_eq!(schema.schema_info.name, "test_schema");
+        assert_eq!(schema.schema_info.author, "test_author");
+        assert_eq!(schema.schema_info.description, "test");
+        assert_eq!(schema.schema_info.fany_version, "1.0");
+        assert_eq!(schema.schema_info.legal_domains, vec!["test.com", "test2.com"]);
+
+    }
+
 }
