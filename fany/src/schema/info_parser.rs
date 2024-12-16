@@ -43,14 +43,14 @@ fn parse_whitespace_line(input: &str) -> IResult<&str, &str, VerboseError<&str>>
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Field {
-    pub name: String,
-    pub value: String,
+pub struct Field<'a> {
+    pub name: &'a str,
+    pub value: &'a str,
 }
 
 #[derive(Debug, PartialEq)]
-enum Line {
-    Field(Field),
+enum Line<'a> {
+    Field(Field<'a>),
     Whitespace,
 }
 
@@ -59,24 +59,36 @@ fn parse_line(input: &str) -> IResult<&str, Line, VerboseError<&str>> {
         return Ok((input, Line::Whitespace));
     }
     let (input, (name, value)) = parse_field(input)?;
-    let name = name.to_string();
-    let value = value.to_string();
     Ok((input, Line::Field(Field { name, value })))
 }
 
-pub fn parse_script(mut input: &str) -> Result<Vec<Field>> {
-    let mut fields = Vec::new();
-    while !input.is_empty() {
-        let (new_input, line) = parse_line(input)
-            .finish()
-            .map_err(|e| crate::Error::ParseError(convert_error(input, e)))?;
-        match line {
-            Line::Field(field) => fields.push(field),
-            Line::Whitespace => break,
+pub struct FieldIter<'a> {
+    input: &'a str,
+}
+impl<'a> Iterator for FieldIter<'a> {
+    type Item = Result<Field<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.input.is_empty() {
+            return None;
         }
-        input = new_input;
+        let (new_input, line) = match parse_line(self.input)
+            .finish()
+            .map_err(|e| crate::Error::ParseError(convert_error(self.input, e)))
+        {
+            Ok(result) => result,
+            Err(e) => return Some(Err(e)),
+        };
+        let result = match line {
+            Line::Field(field) => Some(Ok(field)),
+            Line::Whitespace => None,
+        };
+        self.input = new_input;
+        result
     }
-    Ok(fields)
+}
+pub fn parse_script(input: &'_ str) -> FieldIter<'_> {
+    FieldIter { input }
 }
 
 #[cfg(test)]
@@ -137,8 +149,8 @@ mod tests {
         assert_eq!(
             output,
             Line::Field(Field {
-                name: "name".to_string(),
-                value: "value".to_string()
+                name: "name",
+                value: "value"
             })
         );
 
@@ -153,21 +165,21 @@ mod tests {
 --@name_2: value2
 --@name.3: 1.0
 "#;
-        let output = parse_script(input).unwrap();
+        let output: Vec<Field> = parse_script(input).collect::<Result<_>>().unwrap();
         assert_eq!(
             output,
             vec![
                 Field {
-                    name: "name".to_string(),
-                    value: "value".to_string()
+                    name: "name",
+                    value: "value"
                 },
                 Field {
-                    name: "name_2".to_string(),
-                    value: "value2".to_string()
+                    name: "name_2",
+                    value: "value2"
                 },
                 Field {
-                    name: "name.3".to_string(),
-                    value: "1.0".to_string()
+                    name: "name.3",
+                    value: "1.0"
                 }
             ]
         );

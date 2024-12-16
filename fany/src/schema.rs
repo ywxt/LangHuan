@@ -1,6 +1,9 @@
 use crate::Result;
 use mlua::{FromLua, IntoLua, Table};
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 mod book_info;
 mod chapter;
@@ -11,7 +14,6 @@ mod toc;
 
 pub use book_info::*;
 pub use chapter::*;
-pub use info_parser::*;
 pub use search::*;
 pub use session::*;
 pub use toc::*;
@@ -96,7 +98,7 @@ pub struct SchemaInfo {
     pub author: String,
     pub description: String,
     pub fany_version: String,
-    pub legal_domains: Vec<String>,
+    pub legal_domains: HashSet<String>,
 }
 
 impl FromStr for SchemaInfo {
@@ -108,33 +110,46 @@ impl FromStr for SchemaInfo {
         let mut author = None;
         let mut description = None;
         let mut fany_version = None;
-        let mut legal_domains = Vec::new();
-        for line in parse_script(s)? {
-            match line.name.as_str() {
+        let mut legal_domains = HashSet::new();
+        for line in info_parser::parse_script(s) {
+            let line = line?;
+            match line.name {
                 "id" => id = Some(line.value),
                 "name" => name = Some(line.value),
                 "author" => author = Some(line.value),
                 "description" => description = Some(line.value),
                 "fany_version" => fany_version = Some(line.value),
-                "legal_domains" => legal_domains.push(line.value.to_string()),
-                _ => Err(crate::Error::ParseError(format!(
-                    "unknown field in the script: {}",
-                    line.name
-                )))?,
+                "legal_domains" => {
+                    legal_domains.insert(line.value.to_string());
+                }
+                _ => {
+                    return Err(crate::Error::ParseError(format!(
+                        "unknown field in the script: {}",
+                        line.name
+                    )));
+                }
             }
         }
         Ok(SchemaInfo {
-            id: id.ok_or_else(|| crate::Error::ParseError("missing field: id".to_string()))?,
+            id: id
+                .map(|id| id.to_owned())
+                .ok_or_else(|| crate::Error::ParseError("missing field: id".to_string()))?,
             name: name
+                .map(|name| name.to_owned())
                 .ok_or_else(|| crate::Error::ParseError("missing field: name".to_string()))?,
             author: author
+                .map(|author| author.to_owned())
                 .ok_or_else(|| crate::Error::ParseError("missing field: author".to_string()))?,
-            description: description.ok_or_else(|| {
-                crate::Error::ParseError("missing field: description".to_string())
-            })?,
-            fany_version: fany_version.ok_or_else(|| {
-                crate::Error::ParseError("missing field: fany_version".to_string())
-            })?,
+            description: description
+                .map(|description| description.to_owned())
+                .ok_or_else(|| {
+                    crate::Error::ParseError("missing field: description".to_string())
+                })?,
+            fany_version: fany_version
+                .map(|fany_version| fany_version.to_owned())
+                .ok_or_else(|| {
+                    crate::Error::ParseError("missing field: fany_version".to_string())
+                })?,
             legal_domains,
         })
     }
@@ -151,6 +166,19 @@ pub trait Command: FromLua {
 
 #[cfg(test)]
 mod tests {
+
+    /// a macro to create a hashset
+    macro_rules! hashset {
+        ( $( $x:expr ),* ) => {
+            {
+                let mut set = ::std::collections::HashSet::new();
+                $(
+                    set.insert($x);
+                )*
+                set
+            }
+        };
+    }
     use super::*;
 
     #[test]
@@ -170,7 +198,10 @@ mod tests {
         assert_eq!(schema_info.author, "test_author");
         assert_eq!(schema_info.description, "test");
         assert_eq!(schema_info.fany_version, "1.0");
-        assert_eq!(schema_info.legal_domains, vec!["test.com", "test2.com"]);
+        assert_eq!(
+            schema_info.legal_domains,
+            hashset!["test.com".to_string(), "test2.com".to_string()]
+        );
     }
 
     #[test]
@@ -209,8 +240,9 @@ return {
         assert_eq!(schema.schema_info.author, "test_author");
         assert_eq!(schema.schema_info.description, "test");
         assert_eq!(schema.schema_info.fany_version, "1.0");
-        assert_eq!(schema.schema_info.legal_domains, vec!["test.com", "test2.com"]);
-
+        assert_eq!(
+            schema.schema_info.legal_domains,
+            hashset!["test.com".to_string(), "test2.com".to_string()]
+        );
     }
-
 }
