@@ -2,8 +2,9 @@ use mlua::{ExternalError, IntoLua, LuaSerdeExt, UserData};
 
 use super::{Bytes, Module};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct JsonParserModule;
+
 
 impl Module for JsonParserModule {
     fn create_instance(&self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
@@ -79,7 +80,6 @@ mod tests {
                 r#"
                 local value = {a = 1, b = {1, 2, 3}, c = {d = 4, f = nil}}
                 local json_str = json.encode(value)
-                print(json_str)
                 assert(string.find(json_str, '"a":1', 1, true))
                 assert(string.find(json_str, '"b":[1,2,3]', 1, true))
                 assert(string.find(json_str, '"c":{"d":4}', 1, true))

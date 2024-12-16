@@ -1,6 +1,6 @@
 mod error;
 mod schema;
 mod runtime;
-mod module;
+mod package;
 
 pub use error::*;

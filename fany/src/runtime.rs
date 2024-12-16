@@ -1,5 +1,5 @@
 use crate::{
-    module::{self, Module},
+    package::{self, Module},
     schema::Schema,
 };
 use std::{
@@ -7,12 +7,12 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-static RUNTIME_MODULES: LazyLock<HashMap<&'static str, Box<dyn Module + Send + Sync>>> =
+static RUNTIME_PACKAGES: LazyLock<HashMap<&'static str, Box<dyn Module + Send + Sync>>> =
     LazyLock::new(|| {
         let mut modules = HashMap::new();
         modules.insert(
             "json",
-            Box::new(module::json::JsonParserModule) as Box<dyn Module + Send + Sync>,
+            Box::new(package::json::JsonParserModule) as Box<dyn Module + Send + Sync>,
         );
         modules
     });
@@ -54,12 +54,20 @@ impl Runtime {
     }
 
     fn environment_require(name: &str, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
+        let global = lua.globals();
+        let package: mlua::Table = global.get("package")?;
+        let loaded: mlua::Table = package.get("loaded")?;
+        if let Some(value) = loaded.get(name)? {
+            return Ok(value);
+        }
         if !name.starts_with('@') {
             return Err(mlua::Error::RuntimeError(format!("invalid module name: {}, you can only import pre-defined modules that start with @", name)));
         }
-        let module_name = &name[1..];
-        if let Some(module) = Self::get_predefined_module(module_name) {
-            return module.create_instance(lua);
+        let package_name = &name[1..];
+        if let Some(module) = Self::get_predefined_package(package_name) {
+            let required = module.create_instance(lua)?;
+            loaded.set(name, required.clone())?;
+            return Ok(required);
         }
         Err(mlua::Error::RuntimeError(format!(
             "module not found: {}",
@@ -67,8 +75,8 @@ impl Runtime {
         )))
     }
 
-    fn get_predefined_module(name: &str) -> Option<&'static (dyn Module + Send + Sync)> {
-        RUNTIME_MODULES.get(name).map(|module| &**module)
+    fn get_predefined_package(name: &str) -> Option<&'static (dyn Module + Send + Sync)> {
+        RUNTIME_PACKAGES.get(name).map(|module| &**module)
     }
 }
 
@@ -116,7 +124,7 @@ return {
             assert(json.decode)
             assert(json.stringify)
             local json1 = require('@json')
-            assert(json ~= json1)
+            assert(json == json1)
         "#,
             )
             .set_environment(env)
