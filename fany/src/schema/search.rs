@@ -2,12 +2,58 @@ use mlua::{FromLua, Function, Lua, Table, Value};
 use tracing::error;
 
 use super::{Command, HttpRequest};
-use crate::Result;
+use crate::{http::HttpClient, Result};
 
 #[derive(Debug)]
 pub struct SearchCommand {
     page: Function,
     parse: Function,
+}
+
+pub struct SearchItems<'a, 'b, 'c> {
+    command: &'a SearchCommand,
+    keyword: &'b str,
+    page: u64,
+    page_content: Option<String>,
+    http: &'c HttpClient,
+}
+
+impl<'a, 'b, 'c> SearchItems<'a, 'b, 'c> {
+    pub async fn next_page(&mut self) -> Result<Option<SearchItemIter>> {
+        let request = self
+            .command
+            .page(self.keyword, (self.page, self.page_content.take()));
+        match request {
+            Err(e) => {
+                error!("get search page failed: {}", e);
+                Err(e)
+            }
+            Ok(None) => Ok(None),
+            Ok(Some(request)) => {
+                let response = self.http.request(&request).await?;
+                let iter = self.command.parse(response.clone())?;
+                self.page_content = Some(response);
+                self.page += 1;
+                Ok(Some(iter))
+            }
+        }
+    }
+}
+
+impl SearchCommand {
+    pub async fn search<'a, 'b, 'c>(
+        &'a self,
+        keyword: &'b str,
+        http: &'c HttpClient,
+    ) -> SearchItems<'a, 'b, 'c> {
+        SearchItems {
+            command: self,
+            keyword,
+            page: 1,
+            page_content: None,
+            http,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -48,16 +94,16 @@ pub struct SearchItemIter {
 }
 
 impl Iterator for SearchItemIter {
-    type Item = SearchItem;
+    type Item = Result<SearchItem>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.parse_fn.call(()) {
-            Ok(item) => item,
-            Err(e) => {
-                error!(error = %e, "parse a search item failed");
-                None
-            }
-        }
+        let result: mlua::Result<Option<SearchItem>> = self.parse_fn.call(());
+        result
+            .map_err(|e| {
+                error!("parse search item failed: {}", e);
+                e.into()
+            })
+            .transpose()
     }
 }
 

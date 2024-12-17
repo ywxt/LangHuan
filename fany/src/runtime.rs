@@ -1,3 +1,5 @@
+use tracing::instrument;
+
 use crate::{
     package::{self, Module},
     schema::Schema,
@@ -52,7 +54,7 @@ impl Runtime {
         env.set_readonly(true);
         Ok(env)
     }
-
+    #[instrument(skip(lua))]
     fn environment_require(name: &str, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
         let global = lua.globals();
         let package: mlua::Table = global.get("package")?;

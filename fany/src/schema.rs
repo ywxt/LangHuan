@@ -1,4 +1,4 @@
-use crate::Result;
+use crate::{http::HttpRequest, Result};
 use mlua::{FromLua, IntoLua, Table};
 use std::{
     collections::{HashMap, HashSet},
@@ -18,13 +18,7 @@ pub use search::*;
 pub use session::*;
 pub use toc::*;
 
-#[derive(Debug)]
-pub struct HttpRequest {
-    pub url: String,
-    pub method: String,
-    pub headers: HashMap<String, String>,
-    pub body: Option<Vec<u8>>,
-}
+
 
 impl FromLua for HttpRequest {
     fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
