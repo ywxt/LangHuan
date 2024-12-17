@@ -74,7 +74,7 @@ impl<'a> Iterator for FieldIter<'a> {
         }
         let (new_input, line) = match parse_line(self.input)
             .finish()
-            .map_err(|e| crate::Error::ParseError(convert_error(self.input, e)))
+            .map_err(|e| crate::Error::ScriptParseError(convert_error(self.input, e)))
         {
             Ok(result) => result,
             Err(e) => return Some(Err(e)),

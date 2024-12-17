@@ -1,4 +1,5 @@
-use mlua::{FromLua, Function, Lua, Table, Value};
+use mlua::{FromLua, Function, Lua, LuaSerdeExt, Table, Value};
+use serde::Deserialize;
 use tracing::error;
 
 use super::{Command, HttpRequest};
@@ -10,7 +11,7 @@ pub struct TocCommand {
     parse: Function,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct TocItem {
     pub title: String,
     pub id: String,
@@ -19,11 +20,7 @@ pub struct TocItem {
 
 impl FromLua for TocItem {
     fn from_lua(value: Value, lua: &Lua) -> mlua::Result<Self> {
-        let table: Table = lua.unpack(value)?;
-        let title: String = table.get("title")?;
-        let id: String = table.get("id")?;
-        let tags: Vec<String> = table.get("tags")?;
-        Ok(TocItem { title, id, tags })
+        lua.from_value(value)
     }
 }
 

@@ -1,4 +1,5 @@
-use mlua::{FromLua, Function};
+use mlua::{FromLua, Function, LuaSerdeExt};
+use serde::Deserialize;
 
 use super::{Command, HttpRequest};
 
@@ -10,7 +11,7 @@ pub struct BookInfoCommand {
     parse: Function,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct BookInfo {
     pub title: String,
     pub author: String,
@@ -22,21 +23,7 @@ pub struct BookInfo {
 
 impl FromLua for BookInfo {
     fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
-        let table: mlua::Table = lua.unpack(value)?;
-        let title = table.get("title")?;
-        let author = table.get("author")?;
-        let cover = table.get("cover")?;
-        let last_update = table.get("last_update")?;
-        let status = table.get("status")?;
-        let intro = table.get("intro")?;
-        Ok(BookInfo {
-            title,
-            author,
-            cover,
-            last_update,
-            status,
-            intro,
-        })
+        lua.from_value(value)
     }
 }
 

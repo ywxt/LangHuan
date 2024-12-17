@@ -1,4 +1,5 @@
-use mlua::{FromLua, Function, Lua, Table, Value};
+use mlua::{FromLua, Function, Lua, LuaSerdeExt, Table, Value};
+use serde::Deserialize;
 use tracing::error;
 
 use super::{Command, HttpRequest};
@@ -30,7 +31,7 @@ impl<'a, 'b, 'c> SearchItems<'a, 'b, 'c> {
             }
             Ok(None) => Ok(None),
             Ok(Some(request)) => {
-                let response = self.http.request(&request).await?;
+                let response = self.http.request(request).await?;
                 let iter = self.command.parse(response.clone())?;
                 self.page_content = Some(response);
                 self.page += 1;
@@ -56,7 +57,7 @@ impl SearchCommand {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct SearchItem {
     pub id: String,
     pub title: String,
@@ -69,23 +70,7 @@ pub struct SearchItem {
 
 impl FromLua for SearchItem {
     fn from_lua(value: Value, lua: &Lua) -> mlua::Result<Self> {
-        let table: Table = lua.unpack(value)?;
-        let id = table.get("id")?;
-        let title = table.get("title")?;
-        let author = table.get("author")?;
-        let cover = table.get("cover")?;
-        let last_update = table.get("last_update")?;
-        let status = table.get("status")?;
-        let intro = table.get("intro")?;
-        Ok(SearchItem {
-            id,
-            title,
-            author,
-            cover,
-            last_update,
-            status,
-            intro,
-        })
+        lua.from_value(value)
     }
 }
 
@@ -130,5 +115,67 @@ impl Command for SearchCommand {
     fn parse(&self, content: Self::Page) -> Result<Self::PageContent> {
         let content: Function = self.parse.call(content)?;
         Ok(SearchItemIter { parse_fn: content })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::http::HttpClient;
+    use std::collections::HashSet;
+
+    #[tokio::test]
+    async fn test_search() {
+        let lua = Lua::new();
+        let mut allowed_domains = HashSet::new();
+        allowed_domains.insert("www.example.com".to_string());
+        let http = HttpClient::new(reqwest::Client::new(), allowed_domains);
+        let search = lua
+            .load(
+                r#"
+                {
+                    page = function(id, page, content)
+                        if page == 1 then
+                            return {
+                                url = "https://www.example.com",
+                                method = "GET",
+                                headers = {},
+                            }
+                        end
+                    end,
+                    parse = function(content)
+                        return function()
+                            return {
+                                id = "1",
+                                title = "title",
+                                author = "author",
+                                cover = "cover",
+                                last_update = "last_update",
+                                status = "status",
+                                intro = "intro",
+                            }
+                        end
+                    end,
+                }
+            "#,
+            )
+            .eval::<SearchCommand>();
+        let search = search.unwrap();
+        let mut items = search.search("keyword", &http).await;
+        let item = items
+            .next_page()
+            .await
+            .unwrap()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        assert_eq!(item.id, "1");
+        assert_eq!(item.title, "title");
+        assert_eq!(item.author, "author");
+        assert_eq!(item.cover, "cover");
+        assert_eq!(item.last_update, "last_update");
+        assert_eq!(item.status, "status");
+        assert_eq!(item.intro, "intro");
     }
 }

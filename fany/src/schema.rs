@@ -1,5 +1,5 @@
 use crate::{http::HttpRequest, Result};
-use mlua::{FromLua, IntoLua, Table};
+use mlua::{FromLua, IntoLua, LuaSerdeExt, Table};
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
@@ -18,41 +18,28 @@ pub use search::*;
 pub use session::*;
 pub use toc::*;
 
-
-
 impl FromLua for HttpRequest {
     fn from_lua(value: mlua::Value, lua: &mlua::Lua) -> mlua::Result<Self> {
         if let mlua::Value::String(url) = value {
             Ok(HttpRequest {
                 url: url.to_str()?.to_string(),
-                method: "GET".to_string(),
+                method: Default::default(),
                 headers: HashMap::new(),
                 body: None,
             })
         } else {
-            let table: mlua::Table = lua.unpack(value)?;
-            let url: String = table.get("url")?;
-            let method = table.get("method")?;
-            let headers = table.get("headers")?;
-            let body = table.get("body")?;
-            Ok(HttpRequest {
-                url,
-                method,
-                headers,
-                body,
-            })
+            lua.from_value(value)
         }
     }
 }
 
 impl IntoLua for HttpRequest {
     fn into_lua(self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
-        let table = lua.create_table()?;
-        table.set("url", self.url)?;
-        table.set("method", self.method)?;
-        table.set("headers", self.headers)?;
-        table.set("body", self.body)?;
-        table.into_lua(lua)
+        let options = mlua::SerializeOptions::new()
+            .serialize_none_to_null(true)
+            .serialize_unit_to_null(true)
+            .set_array_metatable(false);
+        lua.to_value_with(&self, options)
     }
 }
 
@@ -117,7 +104,7 @@ impl FromStr for SchemaInfo {
                     legal_domains.insert(line.value.to_string());
                 }
                 _ => {
-                    return Err(crate::Error::ParseError(format!(
+                    return Err(crate::Error::ScriptParseError(format!(
                         "unknown field in the script: {}",
                         line.name
                     )));
@@ -127,22 +114,22 @@ impl FromStr for SchemaInfo {
         Ok(SchemaInfo {
             id: id
                 .map(|id| id.to_owned())
-                .ok_or_else(|| crate::Error::ParseError("missing field: id".to_string()))?,
+                .ok_or_else(|| crate::Error::ScriptParseError("missing field: id".to_string()))?,
             name: name
                 .map(|name| name.to_owned())
-                .ok_or_else(|| crate::Error::ParseError("missing field: name".to_string()))?,
+                .ok_or_else(|| crate::Error::ScriptParseError("missing field: name".to_string()))?,
             author: author
                 .map(|author| author.to_owned())
-                .ok_or_else(|| crate::Error::ParseError("missing field: author".to_string()))?,
+                .ok_or_else(|| crate::Error::ScriptParseError("missing field: author".to_string()))?,
             description: description
                 .map(|description| description.to_owned())
                 .ok_or_else(|| {
-                    crate::Error::ParseError("missing field: description".to_string())
+                    crate::Error::ScriptParseError("missing field: description".to_string())
                 })?,
             fany_version: fany_version
                 .map(|fany_version| fany_version.to_owned())
                 .ok_or_else(|| {
-                    crate::Error::ParseError("missing field: fany_version".to_string())
+                    crate::Error::ScriptParseError("missing field: fany_version".to_string())
                 })?,
             legal_domains,
         })
