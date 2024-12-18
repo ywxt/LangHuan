@@ -1,18 +1,18 @@
 use mlua::{ExternalError, IntoLua, LuaSerdeExt, UserData};
 
-use super::{Bytes, Module};
+use super::{Bytes, Package};
 
 #[derive(Debug, Clone, Default)]
-pub struct JsonParserModule;
+pub struct JsonParserPackage;
 
 
-impl Module for JsonParserModule {
+impl Package for JsonParserPackage {
     fn create_instance(&self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
         Self.into_lua(lua)
     }
 }
 
-impl UserData for JsonParserModule {
+impl UserData for JsonParserPackage {
     fn add_methods<M: mlua::UserDataMethods<Self>>(methods: &mut M) {
         methods.add_function("decode_utf8", |lua, json: Bytes| {
             let value: serde_json::Value =
@@ -51,7 +51,7 @@ mod tests {
     #[test]
     fn test_decode() {
         let lua = Lua::new();
-        let module = JsonParserModule.into_lua(&lua).unwrap();
+        let module = JsonParserPackage.into_lua(&lua).unwrap();
         lua.globals().set("json", module).unwrap();
         let _: () = lua
             .load(
@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn test_encode() {
         let lua = Lua::new();
-        let module = JsonParserModule.into_lua(&lua).unwrap();
+        let module = JsonParserPackage.into_lua(&lua).unwrap();
         lua.globals().set("json", module).unwrap();
         let _: () = lua
             .load(

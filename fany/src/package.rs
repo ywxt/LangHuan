@@ -3,6 +3,7 @@ use std::ops::Deref;
 use mlua::{FromLua, UserData};
 
 pub mod json;
+pub mod url;
 
 #[derive(Debug, Clone)]
 struct Bytes(bytes::Bytes);
@@ -31,6 +32,6 @@ impl FromLua for Bytes {
     }
 }
 
-pub trait Module {
+pub trait Package {
     fn create_instance(&self, lua: &mlua::Lua) -> mlua::Result<mlua::Value>;
 }

@@ -10,10 +10,18 @@ serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 tracing.workspace = true
 
-mlua = { version = "0.10", features = ["send", "async", "luau", "error-send", "serialize"] }
+mlua = { version = "0.10", features = [
+    "send",
+    "async",
+    "luau",
+    "error-send",
+    "serialize",
+] }
 nom = "7.1"
 serde_json = "1.0"
 bytes = "1.9"
 tokio = { version = "1.0", features = ["full"] }
 reqwest = "0.12"
 url = "*"
+percent-encoding = "2.3"
+encoding_rs = { version = "0.8", features = ["fast-legacy-encode"] }

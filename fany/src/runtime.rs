@@ -1,7 +1,7 @@
 use tracing::instrument;
 
 use crate::{
-    package::{self, Module},
+    package::{self, Package},
     schema::Schema,
 };
 use std::{
@@ -9,14 +9,15 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-static RUNTIME_PACKAGES: LazyLock<HashMap<&'static str, Box<dyn Module + Send + Sync>>> =
+static RUNTIME_PACKAGES: LazyLock<HashMap<&'static str, Box<dyn Package + Send + Sync>>> =
     LazyLock::new(|| {
-        let mut modules = HashMap::new();
-        modules.insert(
+        let mut packages = HashMap::new();
+        packages.insert(
             "json",
-            Box::new(package::json::JsonParserModule) as Box<dyn Module + Send + Sync>,
+            Box::new(package::json::JsonParserPackage) as Box<dyn Package + Send + Sync>,
         );
-        modules
+        packages.insert("url", Box::new(package::url::UrlPackage));
+        packages
     });
 
 #[derive(Debug, Clone)]
@@ -77,7 +78,7 @@ impl Runtime {
         )))
     }
 
-    fn get_predefined_package(name: &str) -> Option<&'static (dyn Module + Send + Sync)> {
+    fn get_predefined_package(name: &str) -> Option<&'static (dyn Package + Send + Sync)> {
         RUNTIME_PACKAGES.get(name).map(|module| &**module)
     }
 }

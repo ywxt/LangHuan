@@ -134,7 +134,7 @@ mod tests {
             .load(
                 r#"
                 {
-                    page = function(id, page, content)
+                    page = function(keyword, page, content)
                         if page == 1 then
                             return {
                                 url = "https://www.example.com",
