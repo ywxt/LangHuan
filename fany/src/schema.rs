@@ -147,20 +147,8 @@ pub trait Command: FromLua {
 
 #[cfg(test)]
 mod tests {
-
-    /// a macro to create a hashset
-    macro_rules! hashset {
-        ( $( $x:expr ),* ) => {
-            {
-                let mut set = ::std::collections::HashSet::new();
-                $(
-                    set.insert($x);
-                )*
-                set
-            }
-        };
-    }
     use super::*;
+    use crate::hashset;
 
     #[test]
     fn test_schema_info() {

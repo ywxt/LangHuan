@@ -121,14 +121,13 @@ impl Command for SearchCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hashset;
     use crate::http::HttpClient;
-    use std::collections::HashSet;
 
     #[tokio::test]
     async fn test_search() {
         let lua = Lua::new();
-        let mut allowed_domains = HashSet::new();
-        allowed_domains.insert("www.example.com".to_string());
+        let allowed_domains = hashset!["www.example.com".to_string()];
         let http = HttpClient::new(reqwest::Client::new(), allowed_domains);
         let search = lua
             .load(
