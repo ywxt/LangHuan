@@ -12,7 +12,7 @@ pub struct BookInfoCommand {
 }
 
 impl BookInfoCommand {
-    pub async fn get_info(&self, id: &str, http: &HttpClient) -> Result<BookInfo> {
+    async fn get_info(&self, id: &str, http: &HttpClient) -> Result<BookInfo> {
         let request: HttpRequest = self.page(id, ())?;
         let content = http.request(request).await?;
         let content = self.parse(content)?;
