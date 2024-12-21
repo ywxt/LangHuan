@@ -11,15 +11,35 @@ pub struct SearchCommand {
     parse: Function,
 }
 
-pub struct SearchItems<'a, 'b, 'c> {
-    command: &'a SearchCommand,
+pub struct SearchItems<'b, 'c, C> {
+    command: C,
     keyword: &'b str,
     page: u64,
     page_content: Option<String>,
     http: &'c HttpClient,
 }
 
-impl<'a, 'b, 'c> SearchItems<'a, 'b, 'c> {
+impl<'b, 'c, C> SearchItems<'b, 'c, C> {
+    pub fn new(command: C, keyword: &'b str, http: &'c HttpClient) -> Self {
+        Self {
+            command,
+            keyword,
+            page: 1,
+            page_content: None,
+            http,
+        }
+    }
+}
+
+impl<'b, 'c, C> SearchItems<'b, 'c, C>
+where
+    C: Command<
+        PagePath = <SearchCommand as Command>::PagePath,
+        Page = <SearchCommand as Command>::Page,
+        PagePathParams = <SearchCommand as Command>::PagePathParams,
+        PageContent = <SearchCommand as Command>::PageContent,
+    >,
+{
     pub async fn next_page(&mut self) -> Result<Option<SearchItemIter>> {
         let request = self
             .command
@@ -37,22 +57,6 @@ impl<'a, 'b, 'c> SearchItems<'a, 'b, 'c> {
                 self.page += 1;
                 Ok(Some(iter))
             }
-        }
-    }
-}
-
-impl SearchCommand {
-    pub async fn search<'a, 'b, 'c>(
-        &'a self,
-        keyword: &'b str,
-        http: &'c HttpClient,
-    ) -> SearchItems<'a, 'b, 'c> {
-        SearchItems {
-            command: self,
-            keyword,
-            page: 1,
-            page_content: None,
-            http,
         }
     }
 }
@@ -160,7 +164,13 @@ mod tests {
             )
             .eval::<SearchCommand>();
         let search = search.unwrap();
-        let mut items = search.search("keyword", &http).await;
+        let mut items = SearchItems {
+            command: &search,
+            keyword: "keyword",
+            page: 1,
+            page_content: None,
+            http: &http,
+        };
         let item = items
             .next_page()
             .await

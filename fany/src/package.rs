@@ -2,7 +2,9 @@ use std::ops::Deref;
 
 use mlua::{FromLua, UserData};
 
+#[cfg(feature = "pkg-json")]
 pub mod json;
+#[cfg(feature = "pkg-url-encoding")]
 pub mod url;
 
 #[derive(Debug, Clone)]

@@ -1,4 +1,7 @@
-use crate::{http::HttpRequest, Result};
+use crate::{
+    http::{HttpClient, HttpRequest},
+    Result,
+};
 use mlua::{FromLua, IntoLua, LuaSerdeExt, Table};
 use std::{
     collections::{HashMap, HashSet},
@@ -70,6 +73,16 @@ impl Schema {
             session,
         })
     }
+
+    pub fn search<'a, 'b, 'c>(
+        &'a self,
+        keyword: &'b str,
+        http: &'c HttpClient,
+        session: Option<Session>,
+    ) -> SearchItems<'b, 'c, CommandWithSession<'a, 'a, SearchCommand>> {
+        let command = CommandWithSession::new(&self.book_search, self.session.as_ref(), session);
+        SearchItems::new(command, keyword, http)
+    }
 }
 
 #[derive(Debug)]
@@ -118,9 +131,9 @@ impl FromStr for SchemaInfo {
             name: name
                 .map(|name| name.to_owned())
                 .ok_or_else(|| crate::Error::ScriptParseError("missing field: name".to_string()))?,
-            author: author
-                .map(|author| author.to_owned())
-                .ok_or_else(|| crate::Error::ScriptParseError("missing field: author".to_string()))?,
+            author: author.map(|author| author.to_owned()).ok_or_else(|| {
+                crate::Error::ScriptParseError("missing field: author".to_string())
+            })?,
             description: description
                 .map(|description| description.to_owned())
                 .ok_or_else(|| {
@@ -136,13 +149,79 @@ impl FromStr for SchemaInfo {
     }
 }
 
-pub trait Command: FromLua {
+pub trait Command {
     type PagePath;
     type Page;
     type PagePathParams;
     type PageContent;
     fn page(&self, id: &str, params: Self::PagePathParams) -> Result<Self::PagePath>;
     fn parse(&self, content: Self::Page) -> Result<Self::PageContent>;
+}
+
+impl<C> Command for &C
+where
+    C: Command,
+{
+    type Page = C::Page;
+    type PageContent = C::PageContent;
+    type PagePath = C::PagePath;
+    type PagePathParams = C::PagePathParams;
+
+    fn page(&self, id: &str, params: C::PagePathParams) -> Result<C::PagePath> {
+        (*self).page(id, params)
+    }
+
+    fn parse(&self, content: C::Page) -> Result<C::PageContent> {
+        (*self).parse(content)
+    }
+}
+
+#[derive(Debug)]
+pub struct CommandWithSession<'a, 'b, C> {
+    command: &'a C,
+    session_command: Option<&'b SessionCommand>,
+    session: Option<Session>,
+}
+
+impl<'a, 'b, C> CommandWithSession<'a, 'b, C> {
+    pub fn new(
+        command: &'a C,
+        session_command: Option<&'b SessionCommand>,
+        session: Option<Session>,
+    ) -> Self {
+        Self {
+            command,
+            session_command,
+            session,
+        }
+    }
+}
+
+impl<C> Command for CommandWithSession<'_, '_, C>
+where
+    C: Command<PagePath = Option<HttpRequest>>,
+{
+    type Page = C::Page;
+    type PageContent = C::PageContent;
+    type PagePath = C::PagePath;
+    type PagePathParams = C::PagePathParams;
+
+    fn page(&self, id: &str, params: C::PagePathParams) -> Result<C::PagePath> {
+        let path = self.command.page(id, params)?;
+        if let Some(path) = path {
+            if let (Some(session_command), Some(session)) = (self.session_command, &self.session) {
+                Ok(Some(session_command.wrap(path, session.clone())?))
+            } else {
+                Ok(Some(path))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn parse(&self, content: C::Page) -> Result<C::PageContent> {
+        self.command.parse(content)
+    }
 }
 
 #[cfg(test)]
@@ -213,5 +292,63 @@ return {
             schema.schema_info.legal_domains,
             hashset!["test.com".to_string(), "test2.com".to_string()]
         );
+    }
+
+    #[tokio::test]
+    async fn test_search() {
+        let runtime = crate::runtime::Runtime::new();
+        let schema = runtime
+            .load(
+                r#"--@id: test
+--@name: test_schema
+--@author: test_author
+--@description: test
+--@fany_version: 1.0
+--@legal_domains: www.example.com
+
+local function search(keyword, page, content)
+    if page == 1 then
+        return "https://www.example.com"
+    end
+end
+local function search_parse(content)
+    return function()
+        return {
+            id = "1",
+            title = "title",
+            author = "author",
+            cover = "cover",
+            last_update = "last_update",
+            status = "status",
+            intro = "intro",
+        }
+    end
+end
+local function book_info()
+end
+local function chapter()
+end
+local function toc()
+end
+local function session()
+end
+return {
+    search = {page = search, parse = search_parse},
+    book_info = {page = book_info, parse = book_info},
+    chapter = {page = chapter, parse = chapter},
+    toc = {page = toc, parse = toc},
+    session = {page = session, parse = session, wrap = session},
+}"#,
+                "test",
+            )
+            .unwrap();
+        let http = HttpClient::new(
+            reqwest::Client::new(),
+            hashset!["www.example.com".to_string()],
+        );
+        let mut items = schema.search("keyword", &http, None);
+        let first = items.next_page().await.unwrap().unwrap().next().unwrap().unwrap();
+        assert_eq!(first.id, "1");
+
     }
 }

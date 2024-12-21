@@ -4,6 +4,8 @@ use super::{Command, HttpRequest};
 
 use crate::Result;
 
+pub type Session = mlua::Value;
+
 #[derive(Debug)]
 pub struct SessionCommand {
     page: Function,
@@ -37,7 +39,7 @@ impl Command for SessionCommand {
     type Page = String;
     type PagePathParams = ();
 
-    type PageContent = mlua::Value;
+    type PageContent = Session;
 
     fn parse(&self, content: Self::Page) -> Result<Self::PageContent> {
         Ok(self.parse.call(content)?)

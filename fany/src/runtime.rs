@@ -1,21 +1,28 @@
 use tracing::instrument;
 
 use crate::{
-    package::{self, Package},
+    package::Package,
     schema::Schema,
 };
+use crate::package;
 use std::{
     collections::HashMap,
     sync::{Arc, LazyLock},
 };
 
+mod schema_status;
+
+pub use schema_status::*;
+
 static RUNTIME_PACKAGES: LazyLock<HashMap<&'static str, Box<dyn Package + Send + Sync>>> =
     LazyLock::new(|| {
         let mut packages = HashMap::new();
+        #[cfg(feature = "pkg-json")]
         packages.insert(
             "json",
             Box::new(package::json::JsonParserPackage) as Box<dyn Package + Send + Sync>,
         );
+        #[cfg(feature = "pkg-url-encoding")]
         packages.insert("url", Box::new(package::url::UrlPackage));
         packages
     });
@@ -114,6 +121,7 @@ return {
     }
 
     #[test]
+    #[cfg(feature = "pkg-json")]
     fn test_require() {
         let runtime = Runtime::new();
         let env = runtime.create_environment().unwrap();
