@@ -3,10 +3,8 @@ use crate::{
     Result,
 };
 use mlua::{FromLua, IntoLua, LuaSerdeExt, Table};
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
+use std::{collections::HashSet, str::FromStr};
+use tracing::error;
 
 mod book_info;
 mod chapter;
@@ -27,8 +25,8 @@ impl FromLua for HttpRequest {
             Ok(HttpRequest {
                 url: url.to_str()?.to_string(),
                 method: Default::default(),
-                headers: HashMap::new(),
-                body: None,
+                headers: Default::default(),
+                body: Default::default(),
             })
         } else {
             lua.from_value(value)
@@ -46,7 +44,7 @@ impl IntoLua for HttpRequest {
     }
 }
 
-trait CommandRequest {
+pub(crate) trait CommandRequest {
     fn wrap(self, map: impl FnOnce(HttpRequest) -> Result<HttpRequest>) -> Result<Self>
     where
         Self: Sized;
@@ -106,9 +104,9 @@ impl Schema {
         keyword: &'b str,
         http: &'c HttpClient,
         session: Option<Session>,
-    ) -> SearchItems<'b, 'c, CommandWithSession<'a, 'a, SearchCommand>> {
+    ) -> PageItems<'b, 'c, CommandWithSession<'a, 'a, SearchCommand>> {
         let command = CommandWithSession::new(&self.book_search, self.session.as_ref(), session);
-        SearchItems::new(command, keyword, http)
+        PageItems::new(command, keyword, http)
     }
 
     pub async fn book_info<'a, 'b, 'c>(
@@ -121,6 +119,26 @@ impl Schema {
         let path = command.page(id, ())?;
         let content = http.request(path).await?;
         command.parse(content)
+    }
+
+    pub fn chapter<'a, 'b, 'c>(
+        &'a self,
+        id: &'b str,
+        http: &'c HttpClient,
+        session: Option<Session>,
+    ) -> PageItems<'b, 'c, CommandWithSession<'a, 'a, ChapterCommand>> {
+        let command = CommandWithSession::new(&self.book_chapter, self.session.as_ref(), session);
+        PageItems::new(command, id, http)
+    }
+
+    pub fn toc<'a, 'b, 'c>(
+        &'a self,
+        id: &'b str,
+        http: &'c HttpClient,
+        session: Option<Session>,
+    ) -> PageItems<'b, 'c, CommandWithSession<'a, 'a, TocCommand>> {
+        let command = CommandWithSession::new(&self.book_toc, self.session.as_ref(), session);
+        PageItems::new(command, id, http)
     }
 }
 
@@ -187,7 +205,7 @@ impl FromStr for SchemaInfo {
         })
     }
 }
-trait Command {
+pub(crate) trait Command {
     type Request: CommandRequest;
     type Page;
     type RequestParams;
@@ -261,10 +279,55 @@ where
     }
 }
 
+pub struct PageItems<'a, 'b, C> {
+    command: C,
+    keyword: &'a str,
+    page: u64,
+    page_content: Option<String>,
+    http: &'b HttpClient,
+}
+
+impl<'a, 'b, C> PageItems<'a, 'b, C> {
+    pub fn new(command: C, keyword: &'a str, http: &'b HttpClient) -> Self {
+        Self {
+            command,
+            keyword,
+            page: 1,
+            page_content: None,
+            http,
+        }
+    }
+}
+
+impl<'a, 'b, C> PageItems<'a, 'b, C>
+where
+    C: Command<RequestParams = (u64, Option<String>), Request = Option<HttpRequest>, Page = String>,
+{
+    pub(crate) async fn next_page(&mut self) -> Result<Option<C::PageContent>> {
+        let request = self
+            .command
+            .page(self.keyword, (self.page, self.page_content.take()));
+        match request {
+            Err(e) => {
+                error!("get page({}) failed: {}", self.page, e);
+                Err(e)
+            }
+            Ok(None) => Ok(None),
+            Ok(Some(request)) => {
+                let response = self.http.request(request).await?;
+                let iter = self.command.parse(response.clone())?;
+                self.page_content = Some(response);
+                self.page += 1;
+                Ok(Some(iter))
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{hashset, http, runtime};
+    use crate::hashset;
 
     #[test]
     fn test_schema_info() {
@@ -503,5 +566,120 @@ return {
         assert_eq!(info.last_update, "last_update");
         assert_eq!(info.status, "status");
         assert_eq!(info.intro, "intro");
+    }
+
+    #[tokio::test]
+    async fn test_chapter() {
+        let runtime = crate::runtime::Runtime::new();
+        let schema = runtime
+            .load(
+                r#"--@id: test
+--@name: test_schema
+--@author: test_author
+--@description: test
+--@fany_version: 1.0
+--@legal_domains: www.example.com
+
+local function search()
+end
+local function book_info()
+end
+local function chapter(id)
+    return "https://www.example.com/" .. id
+end
+local function chapter_parse(content)
+    return function()
+        return {
+            type = "text",
+            content = "test",
+        }
+    end
+end
+local function toc()
+end
+local function session()
+end
+return {
+    search = {page = search, parse = search},
+    book_info = {page = book_info, parse = book_info},
+    chapter = {page = chapter, parse = chapter_parse},
+    toc = {page = toc, parse = toc},
+    session = {page = session, parse = session, wrap = session},
+}"#,
+                "test",
+            )
+            .unwrap();
+        let http = HttpClient::new(
+            reqwest::Client::new(),
+            hashset!["www.example.com".to_string()],
+        );
+        let mut items = schema.chapter("123", &http, None);
+        let first = items
+            .next_page()
+            .await
+            .unwrap()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        assert!(matches!(first, Paragraph::Text(content) if content == "test"));
+    }
+
+    #[tokio::test]
+    async fn test_toc() {
+        let runtime = crate::runtime::Runtime::new();
+        let schema = runtime
+            .load(
+                r#"--@id: test
+--@name: test_schema
+--@author: test_author
+--@description: test
+--@fany_version: 1.0
+--@legal_domains: www.example.com
+
+local function search()
+end
+local function book_info()
+end
+local function chapter()
+end
+local function toc(id)
+    return "https://www.example.com/" .. id
+end
+local function toc_parse(content)
+    return function()
+        return {
+            id = "1",
+            title = "title",
+        }
+    end
+end
+local function session()
+end
+return {
+    search = {page = search, parse = search},
+    book_info = {page = book_info, parse = book_info},
+    chapter = {page = chapter, parse = chapter},
+    toc = {page = toc, parse = toc_parse},
+    session = {page = session, parse = session, wrap = session},
+}"#,
+                "test",
+            )
+            .unwrap();
+        let http = HttpClient::new(
+            reqwest::Client::new(),
+            hashset!["www.example.com".to_string()],
+        );
+        let mut items = schema.toc("123", &http, None);
+        let first = items
+            .next_page()
+            .await
+            .unwrap()
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap();
+        assert_eq!(first.id, "1");
+        assert_eq!(first.title, "title");
     }
 }

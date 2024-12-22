@@ -1,18 +1,13 @@
 use tracing::instrument;
 
-use crate::{
-    package::Package,
-    schema::Schema,
-};
 use crate::package;
+use crate::{package::Package, schema::Schema};
 use std::{
     collections::HashMap,
     sync::{Arc, LazyLock},
 };
 
 mod schema_status;
-
-pub use schema_status::*;
 
 static RUNTIME_PACKAGES: LazyLock<HashMap<&'static str, Box<dyn Package + Send + Sync>>> =
     LazyLock::new(|| {

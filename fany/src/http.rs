@@ -50,10 +50,12 @@ impl<'de> Deserialize<'de> for Method {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct HttpRequest {
     pub url: String,
-    #[serde(default = "Default::default")]
+    #[serde(default)]
     pub method: Method,
+    #[serde(default)]
     pub headers: HashMap<String, String>,
-    pub body: Option<Vec<u8>>,
+    #[serde(default)]
+    pub body: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -80,8 +82,8 @@ impl HttpClient {
                 for (key, value) in request.headers.into_iter() {
                     builder = builder.header(key, value);
                 }
-                if let Some(body) = request.body {
-                    builder = builder.body(body);
+                if !request.body.is_empty() {
+                    builder = builder.body(request.body);
                 }
                 let response = builder.send().await?;
                 let text = response.text().await?;
@@ -115,7 +117,7 @@ mod tests {
             url: "http://bilibili.com".to_string(),
             method: Method::from_bytes(b"GET").unwrap(),
             headers: HashMap::new(),
-            body: None,
+            body: Vec::new(),
         };
         let mut allowed_domains = HashSet::new();
         allowed_domains.insert("bilibili.com".to_string());
@@ -130,7 +132,7 @@ mod tests {
             url: "http://baidu.com".to_string(),
             method: Method::from_bytes(b"GET").unwrap(),
             headers: HashMap::new(),
-            body: None,
+            body: Vec::new(),
         };
         assert!(matches!(
             client.request(request).await,

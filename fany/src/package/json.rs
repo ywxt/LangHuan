@@ -5,7 +5,6 @@ use super::{Bytes, Package};
 #[derive(Debug, Clone, Default)]
 pub struct JsonParserPackage;
 
-
 impl Package for JsonParserPackage {
     fn create_instance(&self, lua: &mlua::Lua) -> mlua::Result<mlua::Value> {
         Self.into_lua(lua)

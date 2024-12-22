@@ -15,6 +15,7 @@ pub struct TocCommand {
 pub struct TocItem {
     pub title: String,
     pub id: String,
+    #[serde(default)]
     pub tags: Vec<String>,
 }
 
@@ -29,16 +30,16 @@ pub struct TocItemIter {
 }
 
 impl Iterator for TocItemIter {
-    type Item = TocItem;
+    type Item = Result<TocItem>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.parse_fn.call(()) {
-            Ok(item) => item,
-            Err(e) => {
-                error!(error = %e, "parse a TOC item failed");
-                None
-            }
-        }
+        self.parse_fn
+            .call(())
+            .map_err(|e| {
+                error!("search item failed: {}", e);
+                e.into()
+            })
+            .transpose()
     }
 }
 

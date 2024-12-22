@@ -34,16 +34,16 @@ pub struct ParagraphIter {
 }
 
 impl Iterator for ParagraphIter {
-    type Item = Paragraph;
+    type Item = Result<Paragraph>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.parse_fn.call(()) {
-            Ok(item) => item,
-            Err(e) => {
-                error!(error = %e, "parse a paragraph item failed");
-                None
-            }
-        }
+        self.parse_fn
+            .call(())
+            .map_err(|e| {
+                error!("parse paragraph failed: {}", e);
+                e.into()
+            })
+            .transpose()
     }
 }
 

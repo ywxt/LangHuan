@@ -3,62 +3,12 @@ use serde::Deserialize;
 use tracing::error;
 
 use super::{Command, HttpRequest};
-use crate::{http::HttpClient, Result};
+use crate::Result;
 
 #[derive(Debug)]
 pub struct SearchCommand {
     page: Function,
     parse: Function,
-}
-
-pub struct SearchItems<'b, 'c, C> {
-    command: C,
-    keyword: &'b str,
-    page: u64,
-    page_content: Option<String>,
-    http: &'c HttpClient,
-}
-
-impl<'b, 'c, C> SearchItems<'b, 'c, C> {
-    pub fn new(command: C, keyword: &'b str, http: &'c HttpClient) -> Self {
-        Self {
-            command,
-            keyword,
-            page: 1,
-            page_content: None,
-            http,
-        }
-    }
-}
-
-impl<'b, 'c, C> SearchItems<'b, 'c, C>
-where
-    C: Command<
-        Request = <SearchCommand as Command>::Request,
-        Page = <SearchCommand as Command>::Page,
-        RequestParams = <SearchCommand as Command>::RequestParams,
-        PageContent = <SearchCommand as Command>::PageContent,
-    >,
-{
-    pub async fn next_page(&mut self) -> Result<Option<SearchItemIter>> {
-        let request = self
-            .command
-            .page(self.keyword, (self.page, self.page_content.take()));
-        match request {
-            Err(e) => {
-                error!("get search page failed: {}", e);
-                Err(e)
-            }
-            Ok(None) => Ok(None),
-            Ok(Some(request)) => {
-                let response = self.http.request(request).await?;
-                let iter = self.command.parse(response.clone())?;
-                self.page_content = Some(response);
-                self.page += 1;
-                Ok(Some(iter))
-            }
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -127,6 +77,7 @@ mod tests {
     use super::*;
     use crate::hashset;
     use crate::http::HttpClient;
+    use crate::schema::PageItems;
 
     #[tokio::test]
     async fn test_search() {
@@ -164,7 +115,7 @@ mod tests {
             )
             .eval::<SearchCommand>();
         let search = search.unwrap();
-        let mut items = SearchItems {
+        let mut items = PageItems {
             command: &search,
             keyword: "keyword",
             page: 1,
