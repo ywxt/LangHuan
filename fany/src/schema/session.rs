@@ -16,9 +16,9 @@ pub struct SessionCommand {
 impl SessionCommand {
     pub fn wrap(
         &self,
-        page_path: <Self as Command>::PagePath,
+        page_path: <Self as Command>::Request,
         session: <Self as Command>::PageContent,
-    ) -> Result<<Self as Command>::PagePath> {
+    ) -> Result<<Self as Command>::Request> {
         Ok(self.wrap.call((page_path, session))?)
     }
 }
@@ -34,10 +34,10 @@ impl FromLua for SessionCommand {
 }
 
 impl Command for SessionCommand {
-    type PagePath = HttpRequest;
+    type Request = HttpRequest;
 
     type Page = String;
-    type PagePathParams = ();
+    type RequestParams = ();
 
     type PageContent = Session;
 
@@ -45,7 +45,7 @@ impl Command for SessionCommand {
         Ok(self.parse.call(content)?)
     }
 
-    fn page(&self, _: &str, _: Self::PagePathParams) -> Result<Self::PagePath> {
+    fn page(&self, _: &str, _: Self::RequestParams) -> Result<Self::Request> {
         Ok(self.page.call(())?)
     }
 }

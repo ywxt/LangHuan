@@ -187,13 +187,12 @@ impl FromStr for SchemaInfo {
         })
     }
 }
-
-pub trait Command {
-    type PagePath;
+trait Command {
+    type Request: CommandRequest;
     type Page;
-    type PagePathParams;
+    type RequestParams;
     type PageContent;
-    fn page(&self, id: &str, params: Self::PagePathParams) -> Result<Self::PagePath>;
+    fn page(&self, id: &str, params: Self::RequestParams) -> Result<Self::Request>;
     fn parse(&self, content: Self::Page) -> Result<Self::PageContent>;
 }
 
@@ -203,10 +202,10 @@ where
 {
     type Page = C::Page;
     type PageContent = C::PageContent;
-    type PagePath = C::PagePath;
-    type PagePathParams = C::PagePathParams;
+    type Request = C::Request;
+    type RequestParams = C::RequestParams;
 
-    fn page(&self, id: &str, params: C::PagePathParams) -> Result<C::PagePath> {
+    fn page(&self, id: &str, params: C::RequestParams) -> Result<C::Request> {
         (*self).page(id, params)
     }
 
@@ -238,15 +237,15 @@ impl<'a, 'b, C> CommandWithSession<'a, 'b, C> {
 
 impl<C, R> Command for CommandWithSession<'_, '_, C>
 where
-    C: Command<PagePath = R>,
+    C: Command<Request = R>,
     R: CommandRequest,
 {
     type Page = C::Page;
     type PageContent = C::PageContent;
-    type PagePath = C::PagePath;
-    type PagePathParams = C::PagePathParams;
+    type Request = C::Request;
+    type RequestParams = C::RequestParams;
 
-    fn page(&self, id: &str, params: C::PagePathParams) -> Result<C::PagePath> {
+    fn page(&self, id: &str, params: C::RequestParams) -> Result<C::Request> {
         let path = self.command.page(id, params)?;
         path.wrap(|request| {
             if let (Some(session_command), Some(session)) = (self.session_command, &self.session) {

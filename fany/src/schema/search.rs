@@ -34,9 +34,9 @@ impl<'b, 'c, C> SearchItems<'b, 'c, C> {
 impl<'b, 'c, C> SearchItems<'b, 'c, C>
 where
     C: Command<
-        PagePath = <SearchCommand as Command>::PagePath,
+        Request = <SearchCommand as Command>::Request,
         Page = <SearchCommand as Command>::Page,
-        PagePathParams = <SearchCommand as Command>::PagePathParams,
+        RequestParams = <SearchCommand as Command>::RequestParams,
         PageContent = <SearchCommand as Command>::PageContent,
     >,
 {
@@ -106,13 +106,13 @@ impl FromLua for SearchCommand {
 }
 
 impl Command for SearchCommand {
-    type PagePath = Option<HttpRequest>;
+    type Request = Option<HttpRequest>;
     type Page = String;
-    type PagePathParams = (u64, Option<Self::Page>);
+    type RequestParams = (u64, Option<Self::Page>);
     type PageContent = SearchItemIter;
 
-    fn page(&self, id: &str, params: Self::PagePathParams) -> Result<Self::PagePath> {
-        let page: Self::PagePath = self.page.call((id, params.0, params.1))?;
+    fn page(&self, id: &str, params: Self::RequestParams) -> Result<Self::Request> {
+        let page: Self::Request = self.page.call((id, params.0, params.1))?;
         Ok(page)
     }
 

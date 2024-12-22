@@ -46,10 +46,10 @@ impl FromLua for BookInfoCommand {
 }
 
 impl Command for BookInfoCommand {
-    type PagePath = HttpRequest;
+    type Request = HttpRequest;
 
     type Page = String;
-    type PagePathParams = ();
+    type RequestParams = ();
 
     type PageContent = BookInfo;
 
@@ -57,7 +57,7 @@ impl Command for BookInfoCommand {
         Ok(self.parse.call(content)?)
     }
 
-    fn page(&self, id: &str, _: Self::PagePathParams) -> Result<Self::PagePath> {
+    fn page(&self, id: &str, _: Self::RequestParams) -> Result<Self::Request> {
         Ok(self.page.call(id)?)
     }
 }

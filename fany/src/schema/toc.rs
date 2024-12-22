@@ -52,13 +52,13 @@ impl FromLua for TocCommand {
 }
 
 impl Command for TocCommand {
-    type PagePath = Option<HttpRequest>;
+    type Request = Option<HttpRequest>;
     type Page = String;
-    type PagePathParams = (u64, Option<Self::Page>);
+    type RequestParams = (u64, Option<Self::Page>);
     type PageContent = TocItemIter;
 
-    fn page(&self, id: &str, params: Self::PagePathParams) -> Result<Self::PagePath> {
-        let page: Self::PagePath = self.page.call((id, params.0, params.1))?;
+    fn page(&self, id: &str, params: Self::RequestParams) -> Result<Self::Request> {
+        let page: Self::Request = self.page.call((id, params.0, params.1))?;
         Ok(page)
     }
 
