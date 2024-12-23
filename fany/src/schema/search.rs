@@ -117,7 +117,7 @@ mod tests {
         let search = search.unwrap();
         let mut items = PageItems {
             command: &search,
-            keyword: "keyword",
+            id: "keyword",
             page: 1,
             page_content: None,
             http: &http,

@@ -281,17 +281,17 @@ where
 
 pub struct PageItems<'a, 'b, C> {
     command: C,
-    keyword: &'a str,
+    id: &'a str,
     page: u64,
     page_content: Option<String>,
     http: &'b HttpClient,
 }
 
 impl<'a, 'b, C> PageItems<'a, 'b, C> {
-    pub fn new(command: C, keyword: &'a str, http: &'b HttpClient) -> Self {
+    pub fn new(command: C, id: &'a str, http: &'b HttpClient) -> Self {
         Self {
             command,
-            keyword,
+            id,
             page: 1,
             page_content: None,
             http,
@@ -306,7 +306,7 @@ where
     pub(crate) async fn next_page(&mut self) -> Result<Option<C::PageContent>> {
         let request = self
             .command
-            .page(self.keyword, (self.page, self.page_content.take()));
+            .page(self.id, (self.page, self.page_content.take()));
         match request {
             Err(e) => {
                 error!("get page({}) failed: {}", self.page, e);
