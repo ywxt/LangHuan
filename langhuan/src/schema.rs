@@ -148,7 +148,7 @@ pub struct SchemaInfo {
     pub name: String,
     pub author: String,
     pub description: String,
-    pub fany_version: String,
+    pub lh_version: String,
     pub legal_domains: HashSet<String>,
 }
 
@@ -160,7 +160,7 @@ impl FromStr for SchemaInfo {
         let mut name = None;
         let mut author = None;
         let mut description = None;
-        let mut fany_version = None;
+        let mut lh_version = None;
         let mut legal_domains = HashSet::new();
         for line in info_parser::parse_script(s) {
             let line = line?;
@@ -169,7 +169,7 @@ impl FromStr for SchemaInfo {
                 "name" => name = Some(line.value),
                 "author" => author = Some(line.value),
                 "description" => description = Some(line.value),
-                "fany_version" => fany_version = Some(line.value),
+                "lh_version" => lh_version = Some(line.value),
                 "legal_domains" => {
                     legal_domains.insert(line.value.to_string());
                 }
@@ -196,10 +196,10 @@ impl FromStr for SchemaInfo {
                 .ok_or_else(|| {
                     crate::Error::ScriptParseError("missing field: description".to_string())
                 })?,
-            fany_version: fany_version
-                .map(|fany_version| fany_version.to_owned())
+            lh_version: lh_version
+                .map(|lh_version| lh_version.to_owned())
                 .ok_or_else(|| {
-                    crate::Error::ScriptParseError("missing field: fany_version".to_string())
+                    crate::Error::ScriptParseError("missing field: lh_version".to_string())
                 })?,
             legal_domains,
         })
@@ -335,7 +335,7 @@ mod tests {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@fany_version: 1.0
+--@lh_version: 1.0
 --@legal_domains: test.com
 --@legal_domains: test2.com
 
@@ -345,7 +345,7 @@ mod tests {
         assert_eq!(schema_info.name, "test_schema");
         assert_eq!(schema_info.author, "test_author");
         assert_eq!(schema_info.description, "test");
-        assert_eq!(schema_info.fany_version, "1.0");
+        assert_eq!(schema_info.lh_version, "1.0");
         assert_eq!(
             schema_info.legal_domains,
             hashset!["test.com".to_string(), "test2.com".to_string()]
@@ -358,7 +358,7 @@ mod tests {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@fany_version: 1.0
+--@lh_version: 1.0
 --@legal_domains: test.com
 --@legal_domains: test2.com
 
@@ -387,7 +387,7 @@ return {
         assert_eq!(schema.schema_info.name, "test_schema");
         assert_eq!(schema.schema_info.author, "test_author");
         assert_eq!(schema.schema_info.description, "test");
-        assert_eq!(schema.schema_info.fany_version, "1.0");
+        assert_eq!(schema.schema_info.lh_version, "1.0");
         assert_eq!(
             schema.schema_info.legal_domains,
             hashset!["test.com".to_string(), "test2.com".to_string()]
@@ -403,7 +403,7 @@ return {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@fany_version: 1.0
+--@lh_version: 1.0
 --@legal_domains: www.example.com
 
 local function search()
@@ -457,7 +457,7 @@ return {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@fany_version: 1.0
+--@lh_version: 1.0
 --@legal_domains: www.example.com
 
 local function search(keyword, page, content)
@@ -521,7 +521,7 @@ return {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@fany_version: 1.0
+--@lh_version: 1.0
 --@legal_domains: www.example.com
 
 local function search()
@@ -577,7 +577,7 @@ return {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@fany_version: 1.0
+--@lh_version: 1.0
 --@legal_domains: www.example.com
 
 local function search()
@@ -634,7 +634,7 @@ return {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@fany_version: 1.0
+--@lh_version: 1.0
 --@legal_domains: www.example.com
 
 local function search()

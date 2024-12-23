@@ -9,8 +9,6 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-mod schema_status;
-
 static RUNTIME_PACKAGES: LazyLock<HashMap<&'static str, Box<dyn Package + Send + Sync>>> =
     LazyLock::new(|| {
         let mut packages = HashMap::new();
@@ -89,6 +87,8 @@ impl Runtime {
 
 #[cfg(test)]
 mod tests {
+    use crate::hashset;
+
     use super::*;
 
     #[test]
@@ -100,7 +100,7 @@ mod tests {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@fany_version: 1.0
+--@lh_version: 1.0
 --@legal_domains: test.com
 
 
@@ -115,6 +115,12 @@ return {
                 "test",
             )
             .unwrap();
+        assert_eq!(schema.schema_info.id, "test");
+        assert_eq!(schema.schema_info.name, "test_schema");
+        assert_eq!(schema.schema_info.author, "test_author");
+        assert_eq!(schema.schema_info.description, "test");
+        assert_eq!(schema.schema_info.lh_version, "1.0");
+        assert_eq!(schema.schema_info.legal_domains, hashset!["test.com".to_string()]);
     }
 
     #[test]
