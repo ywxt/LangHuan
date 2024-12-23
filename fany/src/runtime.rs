@@ -1,7 +1,9 @@
 use tracing::instrument;
 
-use crate::package;
-use crate::{package::Package, schema::Schema};
+use crate::{
+    package::{self, Package},
+    schema::Schema,
+};
 use std::{
     collections::HashMap,
     sync::{Arc, LazyLock},
