@@ -10,7 +10,7 @@ use nom::{
 use crate::Result;
 
 fn match_allowed_name(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-    take_while1(|c: char| c.is_alphanumeric() || c == '_' || c == '.')(input)
+    take_while1(|c: char| c.is_alphanumeric() || c == '_' || c == '.' || c == '-')(input)
 }
 
 fn parse_field_name(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
@@ -105,6 +105,16 @@ mod tests {
         let (input, output) = parse_field_name(input).unwrap();
         assert_eq!(input, " value");
         assert_eq!(output, "name");
+
+        let input = "--@name_1: value";
+        let (_, output) = parse_field_name(input).unwrap();
+        assert_eq!(output, "name_1");
+        let input = "--@name.1: value";
+        let (_, output) = parse_field_name(input).unwrap();
+        assert_eq!(output, "name.1");
+        let input = "--@name-1: value";
+        let (_, output) = parse_field_name(input).unwrap();
+        assert_eq!(output, "name-1");
     }
 
     #[test]

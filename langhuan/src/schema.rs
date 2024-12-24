@@ -44,7 +44,7 @@ impl IntoLua for HttpRequest {
     }
 }
 
-pub(crate) trait CommandRequest {
+pub trait CommandRequest {
     fn wrap(self, map: impl FnOnce(HttpRequest) -> Result<HttpRequest>) -> Result<Self>
     where
         Self: Sized;
@@ -169,8 +169,8 @@ impl FromStr for SchemaInfo {
                 "name" => name = Some(line.value),
                 "author" => author = Some(line.value),
                 "description" => description = Some(line.value),
-                "lh_version" => lh_version = Some(line.value),
-                "legal_domains" => {
+                "lh-version" => lh_version = Some(line.value),
+                "legal-domains" => {
                     legal_domains.insert(line.value.to_string());
                 }
                 _ => {
@@ -199,13 +199,13 @@ impl FromStr for SchemaInfo {
             lh_version: lh_version
                 .map(|lh_version| lh_version.to_owned())
                 .ok_or_else(|| {
-                    crate::Error::ScriptParseError("missing field: lh_version".to_string())
+                    crate::Error::ScriptParseError("missing field: lh-version".to_string())
                 })?,
             legal_domains,
         })
     }
 }
-pub(crate) trait Command {
+pub trait Command {
     type Request: CommandRequest;
     type Page;
     type RequestParams;
@@ -303,7 +303,7 @@ impl<'a, 'b, C> PageItems<'a, 'b, C>
 where
     C: Command<RequestParams = (u64, Option<String>), Request = Option<HttpRequest>, Page = String>,
 {
-    pub(crate) async fn next_page(&mut self) -> Result<Option<C::PageContent>> {
+    pub async fn next_page(&mut self) -> Result<Option<C::PageContent>> {
         let request = self
             .command
             .page(self.id, (self.page, self.page_content.take()));
@@ -335,9 +335,9 @@ mod tests {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@lh_version: 1.0
---@legal_domains: test.com
---@legal_domains: test2.com
+--@lh-version: 1.0
+--@legal-domains: test.com
+--@legal-domains: test2.com
 
 "#;
         let schema_info = SchemaInfo::from_str(script).unwrap();
@@ -358,9 +358,9 @@ mod tests {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@lh_version: 1.0
---@legal_domains: test.com
---@legal_domains: test2.com
+--@lh-version: 1.0
+--@legal-domains: test.com
+--@legal-domains: test2.com
 
 local function search()
 end
@@ -403,8 +403,8 @@ return {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@lh_version: 1.0
---@legal_domains: www.example.com
+--@lh-version: 1.0
+--@legal-domains: www.example.com
 
 local function search()
 end
@@ -457,8 +457,8 @@ return {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@lh_version: 1.0
---@legal_domains: www.example.com
+--@lh-version: 1.0
+--@legal-domains: www.example.com
 
 local function search(keyword, page, content)
     if page == 1 then
@@ -521,8 +521,8 @@ return {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@lh_version: 1.0
---@legal_domains: www.example.com
+--@lh-version: 1.0
+--@legal-domains: www.example.com
 
 local function search()
 end
@@ -577,8 +577,8 @@ return {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@lh_version: 1.0
---@legal_domains: www.example.com
+--@lh-version: 1.0
+--@legal-domains: www.example.com
 
 local function search()
 end
@@ -634,8 +634,8 @@ return {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@lh_version: 1.0
---@legal_domains: www.example.com
+--@lh-version: 1.0
+--@legal-domains: www.example.com
 
 local function search()
 end

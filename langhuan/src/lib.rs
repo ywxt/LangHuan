@@ -1,8 +1,8 @@
-mod error;
-mod http;
+pub mod error;
+pub mod http;
 mod package;
-mod runtime;
-mod schema;
+pub mod runtime;
+pub mod schema;
 
 pub use error::*;
 

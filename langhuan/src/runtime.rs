@@ -27,6 +27,12 @@ pub struct Runtime {
     lua: Arc<mlua::Lua>,
 }
 
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Runtime {
     pub fn new() -> Self {
         let lua = mlua::Lua::new();
@@ -100,8 +106,8 @@ mod tests {
 --@name: test_schema
 --@author: test_author
 --@description: test
---@lh_version: 1.0
---@legal_domains: test.com
+--@lh-version: 1.0
+--@legal-domains: test.com
 
 
 local function test() end
@@ -120,7 +126,10 @@ return {
         assert_eq!(schema.schema_info.author, "test_author");
         assert_eq!(schema.schema_info.description, "test");
         assert_eq!(schema.schema_info.lh_version, "1.0");
-        assert_eq!(schema.schema_info.legal_domains, hashset!["test.com".to_string()]);
+        assert_eq!(
+            schema.schema_info.legal_domains,
+            hashset!["test.com".to_string()]
+        );
     }
 
     #[test]
