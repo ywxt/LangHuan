@@ -1,6 +1,7 @@
-pub mod error;
-pub mod http;
+mod error;
 mod package;
+
+pub mod http;
 pub mod runtime;
 pub mod schema;
 
