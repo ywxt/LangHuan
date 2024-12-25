@@ -144,7 +144,7 @@ impl Schema {
 
 #[derive(Debug)]
 pub struct SchemaInfo {
-    pub id: String,
+    pub id: uuid::Uuid,
     pub name: String,
     pub author: String,
     pub description: String,
@@ -183,8 +183,11 @@ impl FromStr for SchemaInfo {
         }
         Ok(SchemaInfo {
             id: id
-                .map(|id| id.to_owned())
-                .ok_or_else(|| crate::Error::ScriptParseError("missing field: id".to_string()))?,
+                .ok_or_else(|| crate::Error::ScriptParseError("missing field: id".to_string()))
+                .and_then(|id| {
+                    uuid::Uuid::parse_str(id)
+                        .map_err(|e| crate::Error::ScriptParseError(e.to_string()))
+                })?,
             name: name
                 .map(|name| name.to_owned())
                 .ok_or_else(|| crate::Error::ScriptParseError("missing field: name".to_string()))?,
@@ -331,7 +334,7 @@ mod tests {
 
     #[test]
     fn test_schema_info() {
-        let script = r#"--@id: test
+        let script = r#"--@id: 198ca153-ccae-4f82-9218-9b6657796b57
 --@name: test_schema
 --@author: test_author
 --@description: test
@@ -341,7 +344,7 @@ mod tests {
 
 "#;
         let schema_info = SchemaInfo::from_str(script).unwrap();
-        assert_eq!(schema_info.id, "test");
+        assert_eq!(schema_info.id, uuid::uuid!("198ca153-ccae-4f82-9218-9b6657796b57"));
         assert_eq!(schema_info.name, "test_schema");
         assert_eq!(schema_info.author, "test_author");
         assert_eq!(schema_info.description, "test");
@@ -354,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_schema() {
-        let script = r#"--@id: test
+        let script = r#"--@id: 198ca153-ccae-4f82-9218-9b6657796b57
 --@name: test_schema
 --@author: test_author
 --@description: test
@@ -383,7 +386,7 @@ return {
         let lua = mlua::Lua::new();
         let table = lua.load(script).eval::<Table>().unwrap();
         let schema = Schema::load(script, table).unwrap();
-        assert_eq!(schema.schema_info.id, "test");
+        assert_eq!(schema.schema_info.id, uuid::uuid!("198ca153-ccae-4f82-9218-9b6657796b57"));
         assert_eq!(schema.schema_info.name, "test_schema");
         assert_eq!(schema.schema_info.author, "test_author");
         assert_eq!(schema.schema_info.description, "test");
@@ -399,7 +402,7 @@ return {
         let runtime = crate::runtime::Runtime::new();
         let schema = runtime
             .load(
-                r#"--@id: test
+                r#"--@id: 198ca153-ccae-4f82-9218-9b6657796b57
 --@name: test_schema
 --@author: test_author
 --@description: test
@@ -453,7 +456,7 @@ return {
         let runtime = crate::runtime::Runtime::new();
         let schema = runtime
             .load(
-                r#"--@id: test
+                r#"--@id: 198ca153-ccae-4f82-9218-9b6657796b57
 --@name: test_schema
 --@author: test_author
 --@description: test
@@ -517,7 +520,7 @@ return {
         let runtime = crate::runtime::Runtime::new();
         let schema = runtime
             .load(
-                r#"--@id: test
+                r#"--@id: 198ca153-ccae-4f82-9218-9b6657796b57
 --@name: test_schema
 --@author: test_author
 --@description: test
@@ -573,7 +576,7 @@ return {
         let runtime = crate::runtime::Runtime::new();
         let schema = runtime
             .load(
-                r#"--@id: test
+                r#"--@id: 198ca153-ccae-4f82-9218-9b6657796b57
 --@name: test_schema
 --@author: test_author
 --@description: test
@@ -630,7 +633,7 @@ return {
         let runtime = crate::runtime::Runtime::new();
         let schema = runtime
             .load(
-                r#"--@id: test
+                r#"--@id: 198ca153-ccae-4f82-9218-9b6657796b57
 --@name: test_schema
 --@author: test_author
 --@description: test

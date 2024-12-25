@@ -10,6 +10,8 @@ serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 tracing.workspace = true
 
+uuid = {version = "1.11", features = ["serde"]}
+
 mlua = { version = "0.10", features = [
     "send",
     "async",
@@ -18,10 +20,11 @@ mlua = { version = "0.10", features = [
     "serialize",
 ] }
 nom = "7.1"
-serde_json = { version = "1.0", optional = true }
 bytes = "1.9"
-tokio = { version = "1.0", features = ["full"] }
+tokio = { version = "1.42", features = ["full"] }
 reqwest = "0.12"
+
+serde_json = { version = "1.0", optional = true }
 url = "*"
 percent-encoding = { version = "2.3", optional = true }
 encoding_rs = { version = "0.8", features = [

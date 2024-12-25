@@ -1,7 +1,5 @@
 [workspace]
-members = [
-  "langhuan",
-]
+members = ["langhuan", "shu"]
 resolver = "2"
 
 [workspace.dependencies]

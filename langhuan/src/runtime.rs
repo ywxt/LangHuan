@@ -102,7 +102,7 @@ mod tests {
         let runtime = Runtime::new();
         let schema = runtime
             .load(
-                r#"--@id: test
+                r#"--@id: 198ca153-ccae-4f82-9218-9b6657796b57
 --@name: test_schema
 --@author: test_author
 --@description: test
@@ -121,7 +121,7 @@ return {
                 "test",
             )
             .unwrap();
-        assert_eq!(schema.schema_info.id, "test");
+        assert_eq!(schema.schema_info.id, uuid::uuid!("198ca153-ccae-4f82-9218-9b6657796b57"));
         assert_eq!(schema.schema_info.name, "test_schema");
         assert_eq!(schema.schema_info.author, "test_author");
         assert_eq!(schema.schema_info.description, "test");
