@@ -109,10 +109,10 @@ impl Schema {
         PageItems::new(command, keyword, http)
     }
 
-    pub async fn book_info<'a, 'b, 'c>(
-        &'a self,
-        id: &'b str,
-        http: &'c HttpClient,
+    pub async fn book_info(
+        &self,
+        id: &str,
+        http: &HttpClient,
         session: Option<Session>,
     ) -> Result<BookInfo> {
         let command = CommandWithSession::new(&self.book_info, self.session.as_ref(), session);
@@ -302,7 +302,7 @@ impl<'a, 'b, C> PageItems<'a, 'b, C> {
     }
 }
 
-impl<'a, 'b, C> PageItems<'a, 'b, C>
+impl<C> PageItems<'_, '_, C>
 where
     C: Command<RequestParams = (u64, Option<String>), Request = Option<HttpRequest>, Page = String>,
 {
@@ -344,7 +344,10 @@ mod tests {
 
 "#;
         let schema_info = SchemaInfo::from_str(script).unwrap();
-        assert_eq!(schema_info.id, uuid::uuid!("198ca153-ccae-4f82-9218-9b6657796b57"));
+        assert_eq!(
+            schema_info.id,
+            uuid::uuid!("198ca153-ccae-4f82-9218-9b6657796b57")
+        );
         assert_eq!(schema_info.name, "test_schema");
         assert_eq!(schema_info.author, "test_author");
         assert_eq!(schema_info.description, "test");
@@ -386,7 +389,10 @@ return {
         let lua = mlua::Lua::new();
         let table = lua.load(script).eval::<Table>().unwrap();
         let schema = Schema::load(script, table).unwrap();
-        assert_eq!(schema.schema_info.id, uuid::uuid!("198ca153-ccae-4f82-9218-9b6657796b57"));
+        assert_eq!(
+            schema.schema_info.id,
+            uuid::uuid!("198ca153-ccae-4f82-9218-9b6657796b57")
+        );
         assert_eq!(schema.schema_info.name, "test_schema");
         assert_eq!(schema.schema_info.author, "test_author");
         assert_eq!(schema.schema_info.description, "test");
