@@ -1,45 +1,51 @@
 use nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{line_ending, not_line_ending, space0},
-    combinator::map,
-    error::{convert_error, VerboseError},
-    sequence::{terminated, tuple},
     Finish, IResult,
 };
 
 use crate::Result;
 
-fn match_allowed_name(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
+fn match_allowed_name(input: &str) -> IResult<&str, &str> {
     take_while1(|c: char| c.is_alphanumeric() || c == '_' || c == '.' || c == '-')(input)
 }
 
-fn parse_field_name(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-    map(
-        tuple((
-            tag("--"),
-            space0,
-            tag("@"),
-            terminated(match_allowed_name, tag(":")),
-        )),
-        |(_, _, _, name)| name,
-    )(input)
+fn parse_field_name(input: &str) -> IResult<&str, &str> {
+    let (input, _) = tag("--")(input)?;
+    let (input, _) = space0(input)?;
+    let (input, _) = tag("@")(input)?;
+    let (input, name) = match_allowed_name(input)?;
+    Ok((input, name))
 }
 
-fn parse_field_value(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-    map(terminated(not_line_ending, line_ending), |value: &str| {
-        value.trim()
-    })(input)
+fn parse_field_value(input: &str) -> IResult<&str, &str> {
+    let (input, value) = not_line_ending(input)?;
+    let (input, _) = line_ending(input)?;
+    Ok((input, value.trim()))
 }
 
-fn parse_field(input: &str) -> IResult<&str, (&str, &str), VerboseError<&str>> {
-    map(
-        tuple((parse_field_name, space0, parse_field_value)),
-        |(name, _, value)| (name, value),
-    )(input)
+fn parse_field(input: &str) -> IResult<&str, (&str, &str)> {
+    let (input, name) = parse_field_name(input)?;
+    let (input, _) = space0(input)?;
+    let (input, _) = tag(":")(input)?;
+    let (input, _) = space0(input)?;
+    let (input, value) = parse_field_value(input)?;
+    Ok((input, (name, value)))
 }
 
-fn parse_whitespace_line(input: &str) -> IResult<&str, &str, VerboseError<&str>> {
-    terminated(space0, line_ending)(input)
+
+fn parse_whitespace_line(input: &str) -> IResult<&str, ()> {
+    let (input, _) = space0(input)?;
+    let (input, _) = line_ending(input)?;
+    Ok((input, ()))
+}
+
+fn parse_line(input: &str) -> IResult<&str, Line> {
+    if let Ok((input, _)) = parse_whitespace_line(input) {
+        return Ok((input, Line::Whitespace));
+    }
+    let (input, (name, value)) = parse_field(input)?;
+    Ok((input, Line::Field(Field { name, value })))
 }
 
 #[derive(Debug, PartialEq)]
@@ -49,17 +55,9 @@ pub struct Field<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-enum Line<'a> {
+pub enum Line<'a> {
     Field(Field<'a>),
     Whitespace,
-}
-
-fn parse_line(input: &str) -> IResult<&str, Line, VerboseError<&str>> {
-    if let Ok((input, _)) = parse_whitespace_line(input) {
-        return Ok((input, Line::Whitespace));
-    }
-    let (input, (name, value)) = parse_field(input)?;
-    Ok((input, Line::Field(Field { name, value })))
 }
 
 pub struct FieldIter<'a> {
@@ -74,7 +72,7 @@ impl<'a> Iterator for FieldIter<'a> {
         }
         let (new_input, line) = match parse_line(self.input)
             .finish()
-            .map_err(|e| crate::Error::ScriptParseError(convert_error(self.input, e)))
+            .map_err(|e| crate::Error::ScriptParseError(format!("{}", e)))
         {
             Ok(result) => result,
             Err(e) => return Some(Err(e)),
@@ -99,11 +97,11 @@ mod tests {
     fn test_parse_field_name() {
         let input = "--@name:";
         let (input, output) = parse_field_name(input).unwrap();
-        assert_eq!(input, "");
+        assert_eq!(input, ":");
         assert_eq!(output, "name");
         let input = "--  @name: value";
         let (input, output) = parse_field_name(input).unwrap();
-        assert_eq!(input, " value");
+        assert_eq!(input, ": value");
         assert_eq!(output, "name");
 
         let input = "--@name_1: value";
